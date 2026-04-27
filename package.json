@@ -1,0 +1,16 @@
+{
+  "name": "fox-platformer-demo",
+  "version": "1.0.0",
+  "description": "A small Mario-like HTML5 platformer demo using the fox girl pixel character.",
+  "scripts": {
+    "dev": "vite --host 0.0.0.0",
+    "start": "vite --host 0.0.0.0",
+    "build": "vite build",
+    "preview": "vite preview --host 0.0.0.0"
+  },
+  "dependencies": {
+    "@vitejs/plugin-basic-ssl": "latest",
+    "vite": "latest"
+  },
+  "devDependencies": {}
+}

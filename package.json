@@ -1,7 +1,7 @@
 {
   "name": "fox-platformer-demo",
   "version": "1.0.0",
-  "description": "A small Mario-like HTML5 platformer demo using the fox girl pixel character.",
+  "description": "猫耳少女的奇幻之旅 HTML5 platformer demo.",
   "scripts": {
     "dev": "vite --host 0.0.0.0",
     "start": "vite --host 0.0.0.0",

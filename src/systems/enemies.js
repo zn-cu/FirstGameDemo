@@ -57,6 +57,22 @@ function spawnBossShot(bubbles, e, player) {
   });
 }
 
+function spawnElderShot(bubbles, e, player) {
+  const dir = player.x + player.w / 2 < e.x + e.w / 2 ? -1 : 1;
+  e.attackDir = dir;
+  bubbles.push({
+    kind: 'elderShot',
+    x: e.x + e.w / 2 + dir * 38 - 28,
+    y: e.y + 20,
+    w: 56,
+    h: 38,
+    vx: dir * 265,
+    vy: -12,
+    life: 3.0,
+    float: Math.random() * Math.PI * 2
+  });
+}
+
 export function updateEnemies({
   bubbles,
   dt,
@@ -64,6 +80,7 @@ export function updateEnemies({
   hitbox,
   onBossMelee,
   onBossRanged,
+  onElderBossCast,
   onDamage,
   onEnemyDefeated,
   player,
@@ -75,9 +92,13 @@ export function updateEnemies({
       continue;
     }
 
-    const isBoss = e.kind === 'boss';
+    const isSlimeBoss = e.kind === 'boss';
+    const isElderBoss = e.kind === 'elderBoss';
+    const isBoss = isSlimeBoss || isElderBoss;
+    const isGoblin = e.kind === 'goblin';
     if (isBoss) e.meleeCooldown = Math.max(0, e.meleeCooldown - dt);
-    const canMove = !isBoss || (e.attackWarmup <= 0 && e.attackReleaseTimer <= 0 && e.meleeWarmup <= 0 && e.meleeTimer <= 0);
+    const canMove = (!isBoss || (e.attackWarmup <= 0 && e.attackReleaseTimer <= 0 && e.meleeWarmup <= 0 && e.meleeTimer <= 0))
+      && (!isGoblin || (e.attackWarmup <= 0 && e.attackReleaseTimer <= 0));
     if (canMove) {
       const previousX = e.x;
       if (enemyNearSpike(e, spikes)) e.vx *= -1;
@@ -94,7 +115,26 @@ export function updateEnemies({
       const bossCenter = e.x + e.w / 2;
       const closeToPlayer = Math.abs(playerCenter - bossCenter) < 170;
 
-      if (e.meleeWarmup > 0) {
+      if (isElderBoss) {
+        if (e.attackWarmup > 0) {
+          e.attackWarmup -= dt;
+          e.attackDir = playerCenter < bossCenter ? -1 : 1;
+          if (e.attackWarmup <= 0) {
+            spawnElderShot(bubbles, e, player);
+            onElderBossCast?.();
+            e.attackReleaseTimer = .36;
+            e.attackTimer = 1.05 + Math.random() * .35;
+          }
+        } else if (e.attackReleaseTimer > 0) {
+          e.attackReleaseTimer -= dt;
+        } else {
+          e.attackTimer -= dt;
+          if (e.attackTimer <= 0) {
+            e.attackDir = playerCenter < bossCenter ? -1 : 1;
+            e.attackWarmup = .62;
+          }
+        }
+      } else if (e.meleeWarmup > 0) {
         e.meleeWarmup -= dt;
         e.attackDir = playerCenter < bossCenter ? -1 : 1;
         if (e.meleeWarmup <= 0) {
@@ -139,6 +179,39 @@ export function updateEnemies({
         if (e.attackTimer <= 0) {
           e.attackDir = player.x + player.w / 2 < e.x + e.w / 2 ? -1 : 1;
           e.attackWarmup = .68;
+        }
+      }
+    } else if (isGoblin) {
+      const playerCenter = player.x + player.w / 2;
+      const goblinCenter = e.x + e.w / 2;
+      const closeToPlayer = Math.abs(playerCenter - goblinCenter) < 86 && Math.abs((player.y + player.h / 2) - (e.y + e.h / 2)) < 54;
+
+      if (e.attackWarmup > 0) {
+        e.attackWarmup -= dt;
+        e.attackDir = playerCenter < goblinCenter ? -1 : 1;
+        if (e.attackWarmup <= 0) {
+          e.attackReleaseTimer = .22;
+          e.meleeHitDone = false;
+        }
+      } else if (e.attackReleaseTimer > 0) {
+        e.attackReleaseTimer -= dt;
+        const slash = {
+          x: e.attackDir > 0 ? e.x + e.w - 2 : e.x - 38,
+          y: e.y + 8,
+          w: 40,
+          h: 34
+        };
+        if (!e.meleeHitDone && rects(player, slash)) {
+          e.meleeHitDone = true;
+          onDamage();
+          return false;
+        }
+        if (e.attackReleaseTimer <= 0) e.attackTimer = .9 + Math.random() * .55;
+      } else {
+        e.attackTimer -= dt;
+        if (closeToPlayer && e.attackTimer <= 0) {
+          e.attackDir = playerCenter < goblinCenter ? -1 : 1;
+          e.attackWarmup = .28;
         }
       }
     } else if (e.attackWarmup > 0) {

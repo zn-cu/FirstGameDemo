@@ -3,17 +3,27 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Fox Platformer Demo</title>
+  <title>猫耳少女的奇幻之旅</title>
   <link rel="stylesheet" href="/src/style.css" />
 </head>
 <body>
   <div class="wrap">
     <header>
       <div>
-        <h1>Fox Platformer Demo</h1>
-        <p>Two-stage fox platformer demo</p>
+        <h1>猫耳少女的奇幻之旅</h1>
+        <p>By 夙落陌上梦</p>
       </div>
-      <button id="restartBtn">重新开始</button>
+      <div class="header-actions">
+        <div class="control-help" aria-label="基本操作说明">
+          <span>A/D 移动</span>
+          <span>空格 跳跃</span>
+          <span>Shift 冲刺</span>
+          <span>J 攻击</span>
+          <span>K 法球</span>
+          <span>R 血瓶/重开</span>
+        </div>
+        <button id="restartBtn">重新开始</button>
+      </div>
     </header>
     <canvas id="game" width="960" height="540"></canvas>
   </div>

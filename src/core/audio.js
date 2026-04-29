@@ -1,8 +1,10 @@
 const FILES = {
   scene: '/assets/audio/scene_theme.wav',
   boss: '/assets/audio/boss_theme.wav',
+  elderBoss: '/assets/audio/elder_boss_theme.wav',
   playerAttack: '/assets/audio/player_attack.wav',
   bossRanged: '/assets/audio/boss_ranged.wav',
+  elderBossCast: '/assets/audio/elder_boss_cast.wav',
   bossMelee: '/assets/audio/boss_melee.wav',
   bossDefeated: '/assets/audio/boss_defeated.wav',
 };
@@ -21,17 +23,25 @@ export function createAudio() {
   master.connect(ctx.destination);
 
   const buffers = new Map();
+  const loading = new Map();
   let unlocked = false;
   let desiredMusic = 'scene';
   let currentMusic = null;
 
-  const ready = Promise.all(
-    Object.entries(FILES).map(async ([name, url]) => {
-      const response = await fetch(url);
-      const data = await response.arrayBuffer();
-      buffers.set(name, await ctx.decodeAudioData(data));
-    })
-  );
+  async function loadBuffer(name) {
+    if (buffers.has(name)) return buffers.get(name);
+    if (!loading.has(name)) {
+      loading.set(name, fetch(FILES[name])
+        .then(response => response.arrayBuffer())
+        .then(data => ctx.decodeAudioData(data))
+        .then(buffer => {
+          buffers.set(name, buffer);
+          loading.delete(name);
+          return buffer;
+        }));
+    }
+    return loading.get(name);
+  }
 
   function stopMusic() {
     if (!currentMusic) return;
@@ -43,11 +53,12 @@ export function createAudio() {
   async function playMusic(name) {
     desiredMusic = name;
     if (!unlocked) return;
-    await ready;
     if (currentMusic?.name === name) return;
+    const buffer = await loadBuffer(name);
+    if (desiredMusic !== name) return;
     stopMusic();
     const source = ctx.createBufferSource();
-    source.buffer = buffers.get(name);
+    source.buffer = buffer;
     source.loop = true;
     source.connect(musicGain);
     source.name = name;
@@ -57,11 +68,11 @@ export function createAudio() {
 
   async function playSfx(name, volume = 1) {
     if (!unlocked) return;
-    await ready;
+    const buffer = await loadBuffer(name);
     const source = ctx.createBufferSource();
     const gain = ctx.createGain();
     gain.gain.value = volume;
-    source.buffer = buffers.get(name);
+    source.buffer = buffer;
     source.connect(gain);
     gain.connect(sfxGain);
     source.start();
@@ -79,8 +90,14 @@ export function createAudio() {
     playerAttack() {
       playSfx('playerAttack', .78);
     },
+    staffAttack() {
+      playSfx('bossRanged', .56);
+    },
     bossRanged() {
       playSfx('bossRanged', .82);
+    },
+    elderBossCast() {
+      playSfx('elderBossCast', .88);
     },
     bossMelee() {
       playSfx('bossMelee', .9);

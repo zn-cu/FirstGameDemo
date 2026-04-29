@@ -6,6 +6,7 @@ import {
   GRAVITY,
   JUMP_V,
   MAX_HP,
+  MAX_POTIONS,
   PLAYER_W,
   STAND_H,
 } from '../core/config.js';
@@ -25,6 +26,7 @@ export function createPlayer(start) {
     frame: 0,
     time: 0,
     coins: 0,
+    healthPotions: 0,
     won: false,
     crouching: false,
     stompCount: 0,
@@ -34,6 +36,7 @@ export function createPlayer(start) {
     dashCooldown: 0,
     platformDropTimer: 0,
     hasDoubleJump: false,
+    hasStaff: true,
     jumpsLeft: 1,
     gameOver: false,
     respawnX: start.x,
@@ -41,7 +44,7 @@ export function createPlayer(start) {
   };
 }
 
-export function resetPlayer(player, spawn, { keepProgress = false } = {}) {
+export function resetPlayer(player, spawn, { keepProgress = false, keepAbilities = keepProgress } = {}) {
   Object.assign(player, {
     x: spawn.x,
     y: spawn.y,
@@ -55,6 +58,7 @@ export function resetPlayer(player, spawn, { keepProgress = false } = {}) {
     frame: 0,
     time: keepProgress ? player.time : 0,
     coins: keepProgress ? player.coins : 0,
+    healthPotions: keepProgress ? player.healthPotions : 0,
     won: false,
     crouching: false,
     stompCount: keepProgress ? player.stompCount : 0,
@@ -63,8 +67,9 @@ export function resetPlayer(player, spawn, { keepProgress = false } = {}) {
     dashTimer: 0,
     dashCooldown: 0,
     platformDropTimer: 0,
-    hasDoubleJump: keepProgress ? player.hasDoubleJump : false,
-    jumpsLeft: keepProgress && player.hasDoubleJump ? 2 : 1,
+    hasDoubleJump: keepAbilities ? player.hasDoubleJump : false,
+    hasStaff: true,
+    jumpsLeft: keepAbilities && player.hasDoubleJump ? 2 : 1,
     gameOver: false,
     respawnX: spawn.x,
     respawnY: spawn.y
@@ -130,6 +135,19 @@ export function takePlayerDamage(player, source = 'hit') {
   } else {
     Object.assign(player, common);
   }
+  return true;
+}
+
+export function addHealthPotion(player) {
+  if (player.healthPotions >= MAX_POTIONS) return false;
+  player.healthPotions++;
+  return true;
+}
+
+export function useHealthPotion(player) {
+  if (player.healthPotions <= 0 || player.hp >= MAX_HP || player.gameOver || player.won) return false;
+  player.healthPotions--;
+  player.hp = Math.min(MAX_HP, player.hp + 1);
   return true;
 }
 

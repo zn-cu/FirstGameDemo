@@ -3,13 +3,34 @@ import {
   HERO_DRAW_H,
   HERO_DRAW_W,
   MAX_HP,
+  MAX_POTIONS,
   TILE
 } from '../core/config.js';
-import { drawAttack as drawAttackEffect } from '../systems/attack.js';
+import { attackElapsed } from '../systems/attack.js';
 
 export function createRenderer(ctx, canvas, assets, level) {
-  const { heroWalk, heroIdle, heroCrouch, tiles, enemySlime, bossSlimeKing, bossSlimeKingAttack, attackSlash } = assets;
-  const { back, coins, doubleJumpItem, flowers, goal, grounds, levelInfo, platforms, spikes, tutorials } = level;
+  const {
+    heroWalk,
+    heroIdle,
+    heroJump,
+    heroSwordAttack,
+    heroMagicAttack,
+    heroCrouch,
+    tiles,
+    enemySlime,
+    bossSlimeKing,
+    bossSlimeKingAttack,
+    enemyGoblinWalk,
+    enemyGoblinAttack,
+    forestBackground,
+    riverStrip,
+    healthPotion,
+    bossGoblinElder,
+    bossGoblinElderSkill,
+    magicStaff,
+    magicProjectile
+  } = assets;
+  const { back, coins, doubleJumpItem, flowers, goal, grounds, healthPotions, levelInfo, platforms, rivers, spikes, staffItem, tutorials } = level;
   const W = canvas.width;
   const H = canvas.height;
 
@@ -20,8 +41,7 @@ export function createRenderer(ctx, canvas, assets, level) {
   }
 
   function drawGround(g, cameraX) {
-    const startX = Math.floor(g.x / TILE) * TILE;
-    for (let x = startX; x < g.x + g.w; x += TILE) {
+    for (let x = g.x; x < g.x + g.w; x += TILE) {
       const visibleX = x - cameraX;
       if (visibleX < -TILE || visibleX > W + TILE) continue;
       const tw = Math.min(TILE, g.x + g.w - x);
@@ -47,7 +67,45 @@ export function createRenderer(ctx, canvas, assets, level) {
     }
   }
 
+  function drawRiver(r, cameraX) {
+    ctx.save();
+    const top = Math.floor(r.y);
+    const time = performance.now() / 1000;
+    const drawX = Math.floor(r.x - cameraX);
+    const drawH = Math.max(r.h, TILE);
+    ctx.beginPath();
+    ctx.rect(drawX, top, r.w, drawH);
+    ctx.clip();
+
+    const tileW = 256;
+    const baseOffset = -((time * 54) % tileW);
+    for (let x = drawX + baseOffset - tileW; x < drawX + r.w + tileW; x += tileW) {
+      ctx.drawImage(riverStrip, 0, 0, riverStrip.width, riverStrip.height, Math.floor(x), top, tileW, drawH);
+    }
+
+    ctx.globalAlpha = .42;
+    const topOffset = -((time * 96) % tileW);
+    for (let x = drawX + topOffset - tileW; x < drawX + r.w + tileW; x += tileW) {
+      ctx.drawImage(riverStrip, 0, 0, riverStrip.width, 42, Math.floor(x), top, tileW, 34);
+    }
+    const shimmer = Math.sin(time * 8) * 4;
+    ctx.globalAlpha = .32;
+    ctx.fillStyle = '#7dd3fc';
+    ctx.fillRect(drawX, top + 8 + shimmer, r.w, 3);
+    ctx.restore();
+  }
+
   function drawBackground(cameraX) {
+    if (levelInfo.theme === 'forest') {
+      const offset = -((cameraX * .18) % W);
+      ctx.drawImage(forestBackground, offset, 0, W, H);
+      ctx.drawImage(forestBackground, offset + W, 0, W, H);
+      if (offset > 0) ctx.drawImage(forestBackground, offset - W, 0, W, H);
+      ctx.fillStyle = 'rgba(4,19,20,.18)';
+      ctx.fillRect(0, 0, W, H);
+      return;
+    }
+
     const g = ctx.createLinearGradient(0, 0, 0, H);
     g.addColorStop(0, '#13243a');
     g.addColorStop(.55, '#0b1b28');
@@ -174,9 +232,52 @@ export function createRenderer(ctx, canvas, assets, level) {
     drawShoeIcon(x, y, .9);
   }
 
+  function drawHealthPotions(cameraX) {
+    for (const potion of healthPotions) {
+      if (potion.taken) continue;
+      const bob = Math.sin(performance.now() / 230 + potion.float) * 4;
+      ctx.drawImage(healthPotion, Math.floor(potion.x - cameraX), Math.floor(potion.y + bob), potion.w, potion.h);
+    }
+  }
+
+  function drawStaffItem(cameraX) {
+    if (!staffItem.active || staffItem.taken) return;
+    const bob = Math.sin(performance.now() / 220 + staffItem.float) * 4;
+    ctx.drawImage(magicStaff, Math.floor(staffItem.x - cameraX), Math.floor(staffItem.y + bob), staffItem.w, staffItem.h);
+  }
+
+  function drawPlayerProjectiles(projectiles) {
+    for (const p of projectiles) {
+      const pulse = 1 + Math.sin(p.age * 18) * .04;
+      const drawW = 46 * pulse;
+      const drawH = 46 * pulse;
+      const drawX = p.x + p.w / 2 - drawW / 2;
+      const drawY = p.y + p.h / 2 - drawH / 2;
+      ctx.save();
+      ctx.drawImage(magicProjectile, 0, 0, magicProjectile.width, magicProjectile.height, drawX, drawY, drawW, drawH);
+      ctx.restore();
+    }
+  }
+
   function drawBubble(b) {
     const x = Math.floor(b.x);
     const y = Math.floor(b.y);
+    if (b.kind === 'elderShot') {
+      const frame = Math.floor(performance.now() / 120) % 3;
+      const sw = bossGoblinElderSkill.width / 4;
+      const sh = bossGoblinElderSkill.height;
+      ctx.save();
+      ctx.globalAlpha = Math.min(1, Math.max(.35, b.life / 3));
+      if (b.vx < 0) {
+        ctx.translate(x + b.w + 8, y - 18);
+        ctx.scale(-1, 1);
+        ctx.drawImage(bossGoblinElderSkill, frame * sw, 0, sw, sh, 0, 0, 76, 58);
+      } else {
+        ctx.drawImage(bossGoblinElderSkill, frame * sw, 0, sw, sh, x - 8, y - 18, 76, 58);
+      }
+      ctx.restore();
+      return;
+    }
     ctx.save();
     ctx.globalAlpha = Math.min(.85, Math.max(.25, b.life / 2.5));
     const size = b.kind === 'bossShot' ? Math.max(b.w, b.h) : 16;
@@ -196,7 +297,7 @@ export function createRenderer(ctx, canvas, assets, level) {
     ctx.restore();
   }
 
-  function drawHero(player, cameraX) {
+  function drawHero(player, cameraX, attack, staffCast) {
     const center = Math.floor(player.x + player.w / 2 - cameraX);
     const bottom = Math.floor(player.y + player.h);
     let source = heroIdle;
@@ -206,24 +307,43 @@ export function createRenderer(ctx, canvas, assets, level) {
     let dw = HERO_DRAW_W;
     let dh = HERO_DRAW_H;
 
-    if (player.crouching) {
+    if (staffCast.timer > 0 && !player.crouching) {
+      source = heroMagicAttack;
+      sw = heroMagicAttack.width / staffCast.frames;
+      sh = heroMagicAttack.height;
+      sx0 = Math.min(staffCast.frames - 1, Math.floor((staffCast.duration - staffCast.timer) / staffCast.duration * staffCast.frames)) * sw;
+      dw = staffCast.drawW;
+      dh = staffCast.drawH;
+    } else if (attack.timer > 0 && !player.crouching) {
+      source = heroSwordAttack;
+      sw = heroSwordAttack.width / attack.frames;
+      sx0 = Math.min(attack.frames - 1, Math.floor(attackElapsed(attack) / attack.duration * attack.frames)) * sw;
+      dw = attack.drawW;
+      dh = attack.drawH;
+    } else if (player.crouching) {
       source = heroCrouch;
       sh = 260;
       dw = 42;
       dh = HERO_CROUCH_DRAW_H;
     } else if (!player.onGround) {
-      source = heroWalk;
-      sx0 = 2 * sw;
+      source = heroJump;
+      sw = heroJump.width / 4;
+      sx0 = (player.vy < -360 ? 0 : player.vy < -80 ? 1 : player.vy < 190 ? 2 : 3) * sw;
     } else if (Math.abs(player.vx) > 20) {
       source = heroWalk;
+      sw = heroWalk.width / 6;
       sx0 = player.frame * sw;
+    } else {
+      sw = heroIdle.width / 6;
+      sx0 = Math.floor(player.time * 2.4) % 6 * sw;
     }
 
     const py = bottom - dh;
     if (player.invincible > 0 && Math.floor(player.time * 18) % 2 === 0) ctx.globalAlpha = .45;
     if (player.dashTimer > 0) ctx.globalAlpha = .35;
     ctx.save();
-    if (player.dir > 0) {
+    const shouldFlip = source === heroJump ? player.dir < 0 : player.dir > 0;
+    if (shouldFlip) {
       ctx.translate(center + dw / 2, py);
       ctx.scale(-1, 1);
       ctx.drawImage(source, sx0, 0, sw, sh, 0, 0, dw, dh);
@@ -238,23 +358,31 @@ export function createRenderer(ctx, canvas, assets, level) {
     for (const e of enemies) {
       if (!e.alive && e.deadTimer <= 0) continue;
       const isBoss = e.kind === 'boss';
+      const isElderBoss = e.kind === 'elderBoss';
+      const anyBoss = isBoss || isElderBoss;
+      const isGoblin = e.kind === 'goblin';
       const bossMelee = isBoss && e.meleeTimer > 0;
-      const bossAttacking = isBoss && (e.attackWarmup > 0 || e.attackReleaseTimer > 0 || bossMelee);
-      let f = isBoss ? Math.floor(player.time * 6) % 5 : (e.alive ? e.frame : 4);
+      const bossAttacking = anyBoss && (e.attackWarmup > 0 || e.attackReleaseTimer > 0 || bossMelee);
+      const goblinAttacking = isGoblin && (e.attackWarmup > 0 || e.attackReleaseTimer > 0);
+      let f = anyBoss ? Math.floor(player.time * 6) % 4 : (e.alive ? e.frame : 3);
       if (bossMelee) {
         const t = 1 - e.meleeTimer / e.meleeDuration;
         f = t < .35 ? 1 : (t < .62 ? 2 : 3);
       } else if (bossAttacking) {
-        f = e.attackReleaseTimer > 0 ? 4 : Math.min(3, Math.floor((1 - e.attackWarmup / .68) * 4));
+        f = isElderBoss ? (e.attackReleaseTimer > 0 ? 3 : 2) : (e.attackReleaseTimer > 0 ? 4 : Math.min(3, Math.floor((1 - e.attackWarmup / .68) * 4)));
+      } else if (goblinAttacking) {
+        f = e.attackReleaseTimer > 0 ? 2 : 1;
       }
-      const flip = bossAttacking ? e.attackDir < 0 : e.vx > 0;
-      const sprite = bossAttacking ? bossSlimeKingAttack : (isBoss ? bossSlimeKing : enemySlime);
-      const sw = bossAttacking ? 128 : (isBoss ? 96 : 64);
-      const sh = isBoss ? 96 : 64;
-      const drawW = bossAttacking ? 128 : e.w;
-      const drawY = isBoss ? e.y - 18 : e.y - 16;
-      const drawH = isBoss ? e.h + 24 : e.h + 22;
-      const drawX = bossAttacking ? e.x - 16 : e.x;
+      const flip = isGoblin
+        ? (goblinAttacking ? e.attackDir < 0 : e.vx < 0)
+        : (bossAttacking ? e.attackDir < 0 : e.vx > 0);
+      const sprite = isElderBoss ? bossGoblinElder : (bossAttacking ? bossSlimeKingAttack : (isBoss ? bossSlimeKing : (goblinAttacking ? enemyGoblinAttack : (isGoblin ? enemyGoblinWalk : enemySlime))));
+      const sw = isElderBoss ? bossGoblinElder.width / 4 : (bossAttacking ? 128 : (isBoss ? 96 : (goblinAttacking ? enemyGoblinAttack.width / 4 : (isGoblin ? enemyGoblinWalk.width / 4 : 64))));
+      const sh = isElderBoss ? bossGoblinElder.height : (isBoss ? 96 : (goblinAttacking ? enemyGoblinAttack.height : (isGoblin ? enemyGoblinWalk.height : 64)));
+      const drawW = isElderBoss ? 150 : (bossAttacking ? 128 : (goblinAttacking ? 92 : (isGoblin ? 54 : e.w)));
+      const drawY = isElderBoss ? e.y - 26 : (isBoss ? e.y - 18 : (isGoblin ? e.y - 18 : e.y - 16));
+      const drawH = isElderBoss ? 118 : (isBoss ? e.h + 24 : (isGoblin ? 68 : e.h + 22));
+      const drawX = isElderBoss ? e.x - 34 : (bossAttacking ? e.x - 16 : (goblinAttacking ? e.x - 28 : e.x - (isGoblin ? 8 : 0)));
       if (isBoss && (e.meleeWarmup > 0 || e.meleeTimer > 0)) {
         const warningT = e.meleeWarmup > 0 ? 1 - e.meleeWarmup / .42 : 1;
         const cx = e.meleeTargetX + e.w / 2;
@@ -285,7 +413,7 @@ export function createRenderer(ctx, canvas, assets, level) {
       }
       ctx.restore();
 
-      if (isBoss && e.alive) {
+      if (anyBoss && e.alive) {
         const hpRatio = Math.max(0, e.hp || 0) / (e.maxHp || 1);
         ctx.fillStyle = 'rgba(15,23,42,.72)';
         ctx.fillRect(e.x + 8, e.y - 18, e.w - 16, 7);
@@ -293,7 +421,7 @@ export function createRenderer(ctx, canvas, assets, level) {
         ctx.fillRect(e.x + 9, e.y - 17, (e.w - 18) * hpRatio, 5);
       }
 
-      if (e.alive && e.attackWarmup > 0) {
+      if (e.alive && e.attackWarmup > 0 && !isGoblin && !isElderBoss) {
         const t = e.kind === 'boss' ? e.attackWarmup / .68 : e.attackWarmup / .38;
         ctx.fillStyle = `rgba(186,230,253,${.45 + (1 - t) * .45})`;
         ctx.beginPath();
@@ -305,12 +433,16 @@ export function createRenderer(ctx, canvas, assets, level) {
 
   function drawHud(player) {
     ctx.fillStyle = 'rgba(10,14,24,.62)';
-    ctx.fillRect(18, 18, 220, 36);
+    ctx.fillRect(18, 18, 336, 36);
     ctx.fillStyle = '#fff7dc';
     ctx.font = '15px system-ui';
     ctx.fillText(`生命 ${'❤'.repeat(Math.max(0, player.hp))}${'♡'.repeat(Math.max(0, MAX_HP - player.hp))}`, 30, 41);
     ctx.fillStyle = '#fde68a';
     ctx.fillText(`金币 ${player.coins}/${coins.length}`, 128, 41);
+    ctx.drawImage(healthPotion, 244, 20, 24, 24);
+    ctx.fillStyle = '#fecdd3';
+    ctx.fillText(`${player.healthPotions}/${MAX_POTIONS}`, 272, 41);
+    if (player.hasStaff) ctx.drawImage(magicStaff, 320, 18, 26, 26);
 
     const levelText = `关卡 ${levelInfo.index + 1}-${levelInfo.name}`;
     ctx.font = '15px system-ui';
@@ -323,7 +455,7 @@ export function createRenderer(ctx, canvas, assets, level) {
   }
 
   function drawBossHud(enemies) {
-    const boss = enemies.find(e => e.kind === 'boss' && e.alive);
+    const boss = enemies.find(e => (e.kind === 'boss' || e.kind === 'elderBoss') && e.alive);
     if (!boss) return;
     const ratio = Math.max(0, boss.hp || 0) / (boss.maxHp || 1);
     const x = 260;
@@ -334,7 +466,7 @@ export function createRenderer(ctx, canvas, assets, level) {
     ctx.fillRect(x - 10, y - 8, w + 20, 48);
     ctx.fillStyle = '#f8fafc';
     ctx.font = '16px system-ui';
-    ctx.fillText('史莱姆国王', x, y + 2);
+    ctx.fillText(boss.kind === 'elderBoss' ? '哥布林长老' : '史莱姆国王', x, y + 2);
     ctx.fillStyle = '#3f1d22';
     ctx.fillRect(x, y + 13, w, h);
     ctx.fillStyle = '#ef4444';
@@ -386,16 +518,19 @@ export function createRenderer(ctx, canvas, assets, level) {
 
   return {
     draw(state) {
-      const { attack, bubbles, cameraX, enemies, hurtFlash, modal, particles, player, screenShake } = state;
+      const { attack, bubbles, cameraX, enemies, hurtFlash, modal, particles, player, playerProjectiles, screenShake, staffCast } = state;
       const shake = screenShake > 0 ? screenShake / .28 : 0;
       ctx.setTransform(1, 0, 0, 1, (Math.random() * 2 - 1) * 8 * shake, (Math.random() * 2 - 1) * 5 * shake);
       drawBackground(cameraX);
+      for (const r of rivers) drawRiver(r, cameraX);
       for (const g of grounds) drawGround(g, cameraX);
       for (const p of platforms) drawPlatform(p, cameraX);
       for (const s of spikes) drawSpike(s, cameraX);
       drawDeco(cameraX);
       drawTutorials(cameraX);
       drawDoubleJumpItem(cameraX);
+      drawHealthPotions(cameraX);
+      drawStaffItem(cameraX);
 
       ctx.save();
       ctx.translate(-cameraX, 0);
@@ -406,15 +541,15 @@ export function createRenderer(ctx, canvas, assets, level) {
         }
       }
       drawEnemies(enemies, player);
+      drawPlayerProjectiles(playerProjectiles);
       for (const b of bubbles) drawBubble(b);
       for (const p of particles) {
-        ctx.fillStyle = `rgba(34,211,238,${Math.max(0, p.life / .7)})`;
+        ctx.fillStyle = `${p.color ?? 'rgba(34,211,238,'}${Math.max(0, p.life / .7)})`;
         ctx.fillRect(p.x, p.y, p.size, p.size);
       }
       ctx.restore();
 
-      drawAttackEffect(ctx, attack, player, cameraX, attackSlash);
-      drawHero(player, cameraX);
+      drawHero(player, cameraX, attack, staffCast);
       if (hurtFlash > 0) {
         ctx.fillStyle = `rgba(239,68,68,${hurtFlash / .32 * .22})`;
         ctx.fillRect(0, 0, W, H);

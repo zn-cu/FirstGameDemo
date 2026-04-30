@@ -108,9 +108,9 @@ export function updateSafeLanding(player, spikes) {
   player.respawnY = player.y + player.h - STAND_H;
 }
 
-export function takePlayerDamage(player, source = 'hit') {
+export function takePlayerDamage(player, source = 'hit', amount = 1) {
   if (player.invincible > 0 || player.gameOver || player.won) return false;
-  player.hp--;
+  player.hp -= Math.max(1, amount);
   if (player.hp <= 0) {
     player.gameOver = true;
     player.vx = 0;
@@ -147,7 +147,7 @@ export function addHealthPotion(player) {
 export function useHealthPotion(player) {
   if (player.healthPotions <= 0 || player.hp >= MAX_HP || player.gameOver || player.won) return false;
   player.healthPotions--;
-  player.hp = Math.min(MAX_HP, player.hp + 1);
+  player.hp = Math.min(MAX_HP, player.hp + 2);
   return true;
 }
 

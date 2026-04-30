@@ -21,11 +21,20 @@ export function createRenderer(ctx, canvas, assets, level) {
     enemySlime,
     bossSlimeKing,
     bossSlimeKingAttack,
+    bossYukinoWalk,
+    bossYukinoAttack,
+    yukinoBagProjectile,
     enemyGoblinWalk,
     enemyGoblinAttack,
+    enemyBookWalk,
+    enemyBookAttack,
+    enemyEliteBookWalk,
+    enemyEliteBookAttack,
     forestBackground,
     underwaterBackground,
+    schoolBackground,
     stoneTiles,
+    schoolTiles,
     riverStrip,
     healthPotion,
     slimeMucus,
@@ -34,15 +43,18 @@ export function createRenderer(ctx, canvas, assets, level) {
     bossGoblinElderSkill,
     magicStaff,
     magicProjectile,
-    npcOldVillageChiefIdle
+    npcOldVillageChiefIdle,
+    treehouseEntrance,
+    schoolBossGate
   } = assets;
-  const { back, coins, doubleJumpItem, flowers, goal, grounds, healthPotions, levelInfo, npcs, platforms, rivers, spikes, staffItem, tutorials } = level;
+  const { back, bossDoors, coins, doubleJumpItem, flowers, goal, grounds, healthPotions, levelInfo, npcs, platforms, rivers, spikes, staffItem, treehouses, tutorials } = level;
   const W = canvas.width;
   const H = canvas.height;
 
   function sx(i) { return i * 64; }
 
   function terrainTiles() {
+    if (levelInfo.theme === 'school') return schoolTiles;
     return levelInfo.theme === 'underwater' ? stoneTiles : tiles;
   }
 
@@ -126,6 +138,16 @@ export function createRenderer(ctx, canvas, assets, level) {
       return;
     }
 
+    if (levelInfo.theme === 'school') {
+      const offset = -((cameraX * .1) % W);
+      ctx.drawImage(schoolBackground, offset, 0, W, H);
+      ctx.drawImage(schoolBackground, offset + W, 0, W, H);
+      if (offset > 0) ctx.drawImage(schoolBackground, offset - W, 0, W, H);
+      ctx.fillStyle = 'rgba(255,247,237,.08)';
+      ctx.fillRect(0, 0, W, H);
+      return;
+    }
+
     const g = ctx.createLinearGradient(0, 0, 0, H);
     g.addColorStop(0, '#13243a');
     g.addColorStop(.55, '#0b1b28');
@@ -165,10 +187,19 @@ export function createRenderer(ctx, canvas, assets, level) {
     if (back.w > 0) {
       ctx.save();
       ctx.globalAlpha = .85;
-      ctx.translate(Math.floor(back.x - cameraX) + 68, back.y + 25);
-      ctx.scale(-1, 1);
-      ctx.drawImage(tiles, sx(7), 0, 64, 64, 0, 0, 68, 68);
+      if (back.dir === 'right') {
+        ctx.drawImage(tiles, sx(7), 0, 64, 64, Math.floor(back.x - cameraX), back.y + 25, 68, 68);
+      } else {
+        ctx.translate(Math.floor(back.x - cameraX) + 68, back.y + 25);
+        ctx.scale(-1, 1);
+        ctx.drawImage(tiles, sx(7), 0, 64, 64, 0, 0, 68, 68);
+      }
       ctx.restore();
+    }
+    for (const door of bossDoors) {
+      const x = Math.floor(door.x - cameraX);
+      if (x < -door.w || x > W + door.w) continue;
+      ctx.drawImage(schoolBossGate, x, door.y, door.w, door.h);
     }
   }
 
@@ -199,6 +230,14 @@ export function createRenderer(ctx, canvas, assets, level) {
         ctx.fillText('E 对话', x + 14, npc.y - 18);
         ctx.restore();
       }
+    }
+  }
+
+  function drawTreehouses(cameraX) {
+    for (const treehouse of treehouses) {
+      const x = Math.floor(treehouse.x - cameraX);
+      if (x < -treehouse.w || x > W + treehouse.w) continue;
+      ctx.drawImage(treehouseEntrance, x, treehouse.y, treehouse.w, treehouse.h);
     }
   }
 
@@ -287,6 +326,87 @@ export function createRenderer(ctx, canvas, assets, level) {
   function drawBubble(b) {
     const x = Math.floor(b.x);
     const y = Math.floor(b.y);
+    if (b.kind === 'yukinoBag') {
+      const cx = x + b.w / 2;
+      const cy = y + b.h / 2;
+      const frame = Math.floor((b.age ?? 0) * 12) % 4;
+      const sw = yukinoBagProjectile.width / 4;
+      const sh = yukinoBagProjectile.height;
+      const drawW = 78;
+      const drawH = 44;
+      const dir = Math.sign(b.vx || 1);
+      ctx.save();
+      ctx.translate(cx, cy);
+      if (dir < 0) ctx.scale(-1, 1);
+      ctx.globalAlpha = Math.min(.95, Math.max(.35, b.life / 2));
+      ctx.drawImage(yukinoBagProjectile, frame * sw, 0, sw, sh, -drawW / 2, -drawH / 2, drawW, drawH);
+      ctx.restore();
+      return;
+    }
+    if (b.kind === 'eliteChain') {
+      const dir = b.dir ?? 1;
+      const links = 7;
+      ctx.save();
+      ctx.globalAlpha = Math.min(.95, Math.max(.3, b.life / .7));
+      if (dir < 0) {
+        ctx.translate(x + b.w, y);
+        ctx.scale(-1, 1);
+      } else {
+        ctx.translate(x, y);
+      }
+      for (let i = 0; i < links; i++) {
+        const lx = i * 10;
+        const ly = 6 + Math.sin((b.age ?? 0) * 22 + i) * 2;
+        ctx.strokeStyle = '#6b5b4a';
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        ctx.ellipse(lx + 5, ly + 3, 5, 3, i % 2 ? .6 : -.6, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+      ctx.fillStyle = '#b7792e';
+      ctx.strokeStyle = '#fde68a';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(70, 0);
+      ctx.lineTo(91, 9);
+      ctx.lineTo(70, 18);
+      ctx.lineTo(76, 9);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+      ctx.restore();
+      return;
+    }
+    if (b.kind === 'bookPage') {
+      const cx = x + b.w / 2;
+      const cy = y + b.h / 2;
+      const spin = (performance.now() / 85 + (b.float ?? 0)) % (Math.PI * 2);
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.rotate(spin);
+      ctx.globalAlpha = Math.min(.92, Math.max(.25, b.life / 1.5));
+      ctx.fillStyle = '#fff7dc';
+      ctx.strokeStyle = '#60a5fa';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(-12, -8);
+      ctx.lineTo(12, -4);
+      ctx.lineTo(8, 8);
+      ctx.lineTo(-10, 6);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+      ctx.strokeStyle = '#c08457';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(-6, -3);
+      ctx.lineTo(6, -1);
+      ctx.moveTo(-7, 2);
+      ctx.lineTo(4, 4);
+      ctx.stroke();
+      ctx.restore();
+      return;
+    }
     if (b.kind === 'elderShot') {
       const frame = Math.floor(performance.now() / 120) % 3;
       const sw = bossGoblinElderSkill.width / 4;
@@ -386,9 +506,15 @@ export function createRenderer(ctx, canvas, assets, level) {
       const isElderBoss = e.kind === 'elderBoss';
       const anyBoss = isBoss || isElderBoss;
       const isGoblin = e.kind === 'goblin';
+      const isBookMonster = e.kind === 'bookMonster';
+      const isEliteBook = e.kind === 'eliteBook';
+      const isYukino = e.kind === 'yukino';
       const bossMelee = isBoss && e.meleeTimer > 0;
       const bossAttacking = anyBoss && (e.attackWarmup > 0 || e.attackReleaseTimer > 0 || bossMelee);
       const goblinAttacking = isGoblin && (e.attackWarmup > 0 || e.attackReleaseTimer > 0);
+      const bookMonsterAttacking = isBookMonster && e.attackWarmup > 0;
+      const eliteBookAttacking = isEliteBook && e.attackWarmup > 0;
+      const yukinoAttacking = isYukino && (e.attackWarmup > 0 || e.attackReleaseTimer > 0);
       let f = anyBoss ? Math.floor(player.time * 6) % 4 : (e.alive ? e.frame : 3);
       if (bossMelee) {
         const t = 1 - e.meleeTimer / e.meleeDuration;
@@ -397,17 +523,25 @@ export function createRenderer(ctx, canvas, assets, level) {
         f = isElderBoss ? (e.attackReleaseTimer > 0 ? 3 : 2) : (e.attackReleaseTimer > 0 ? 4 : Math.min(3, Math.floor((1 - e.attackWarmup / .68) * 4)));
       } else if (goblinAttacking) {
         f = e.attackReleaseTimer > 0 ? 2 : 1;
+      } else if (bookMonsterAttacking) {
+        f = Math.min(3, Math.floor((1 - e.attackWarmup / .38) * 4));
+      } else if (eliteBookAttacking) {
+        f = Math.min(7, Math.floor((1 - e.attackWarmup / .58) * 8));
+      } else if (yukinoAttacking) {
+        const attackProgress = e.attackWarmup > 0 ? 1 - e.attackWarmup / .56 : 1;
+        f = Math.min(3, Math.floor(attackProgress * 4));
       }
-      const flip = isGoblin
-        ? (goblinAttacking ? e.attackDir < 0 : e.vx < 0)
+      const flip = isGoblin || isBookMonster || isEliteBook || isYukino
+        ? ((goblinAttacking || bookMonsterAttacking || eliteBookAttacking || yukinoAttacking) ? e.attackDir < 0 : e.vx < 0)
         : (bossAttacking ? e.attackDir < 0 : e.vx > 0);
-      const sprite = isElderBoss ? bossGoblinElder : (bossAttacking ? bossSlimeKingAttack : (isBoss ? bossSlimeKing : (goblinAttacking ? enemyGoblinAttack : (isGoblin ? enemyGoblinWalk : enemySlime))));
-      const sw = isElderBoss ? bossGoblinElder.width / 4 : (bossAttacking ? 128 : (isBoss ? 96 : (goblinAttacking ? enemyGoblinAttack.width / 4 : (isGoblin ? enemyGoblinWalk.width / 4 : 64))));
-      const sh = isElderBoss ? bossGoblinElder.height : (isBoss ? 96 : (goblinAttacking ? enemyGoblinAttack.height : (isGoblin ? enemyGoblinWalk.height : 64)));
-      const drawW = isElderBoss ? 150 : (bossAttacking ? 128 : (goblinAttacking ? 92 : (isGoblin ? 54 : e.w)));
-      const drawY = isElderBoss ? e.y - 26 : (isBoss ? e.y - 18 : (isGoblin ? e.y - 18 : e.y - 16));
-      const drawH = isElderBoss ? 118 : (isBoss ? e.h + 24 : (isGoblin ? 68 : e.h + 22));
-      const drawX = isElderBoss ? e.x - 34 : (bossAttacking ? e.x - 16 : (goblinAttacking ? e.x - 28 : e.x - (isGoblin ? 8 : 0)));
+      const sprite = isElderBoss ? bossGoblinElder : (bossAttacking ? bossSlimeKingAttack : (isBoss ? bossSlimeKing : (isYukino ? (yukinoAttacking ? bossYukinoAttack : bossYukinoWalk) : (goblinAttacking ? enemyGoblinAttack : (isGoblin ? enemyGoblinWalk : (eliteBookAttacking ? enemyEliteBookAttack : (isEliteBook ? enemyEliteBookWalk : (bookMonsterAttacking ? enemyBookAttack : (isBookMonster ? enemyBookWalk : enemySlime)))))))));
+      const frameCount = isYukino ? 4 : (isEliteBook ? 8 : ((isGoblin || isBookMonster) ? 4 : 1));
+      const sw = isElderBoss ? bossGoblinElder.width / 4 : (bossAttacking ? 128 : (isBoss ? 96 : (goblinAttacking ? enemyGoblinAttack.width / 4 : ((isGoblin || isBookMonster || isEliteBook || isYukino) ? sprite.width / frameCount : 64))));
+      const sh = isElderBoss ? bossGoblinElder.height : (isBoss ? 96 : (goblinAttacking ? enemyGoblinAttack.height : ((isGoblin || isBookMonster || isEliteBook || isYukino) ? sprite.height : 64)));
+      const drawW = isElderBoss ? 150 : (bossAttacking ? 128 : (goblinAttacking ? 92 : (isGoblin ? 54 : (isBookMonster ? 60 : (isEliteBook ? 82 : (isYukino ? (yukinoAttacking ? 124 : 86) : e.w))))));
+      const drawY = isElderBoss ? e.y - 26 : (isBoss ? e.y - 18 : (isGoblin ? e.y - 18 : (isBookMonster ? e.y - 8 : (isEliteBook ? e.y - 14 : (isYukino ? e.y - 16 : e.y - 16)))));
+      const drawH = isElderBoss ? 118 : (isBoss ? e.h + 24 : (isGoblin ? 68 : (isBookMonster ? 56 : (isEliteBook ? 88 : (isYukino ? 104 : e.h + 22)))));
+      const drawX = isElderBoss ? e.x - 34 : (bossAttacking ? e.x - 16 : (goblinAttacking ? e.x - 28 : e.x - (isGoblin ? 8 : (isBookMonster ? 9 : (isEliteBook ? 14 : (isYukino ? (yukinoAttacking ? 50 : 20) : 0))))));
       if (isBoss && (e.meleeWarmup > 0 || e.meleeTimer > 0)) {
         const warningT = e.meleeWarmup > 0 ? 1 - e.meleeWarmup / .42 : 1;
         const cx = e.meleeTargetX + e.w / 2;
@@ -497,7 +631,7 @@ export function createRenderer(ctx, canvas, assets, level) {
     ctx.fillStyle = '#fecdd3';
     ctx.fillText(`${player.healthPotions}/${MAX_POTIONS}`, barX + 128, rowY + 13);
 
-    const levelText = `关卡 ${levelInfo.index + 1}-${levelInfo.name}`;
+    const levelText = levelInfo.chapter ? `关卡 ${levelInfo.chapter}-${levelInfo.name}` : levelInfo.name;
     ctx.font = '15px system-ui';
     const levelW = ctx.measureText(levelText).width;
     ctx.fillStyle = 'rgba(10,14,24,.62)';
@@ -565,25 +699,29 @@ export function createRenderer(ctx, canvas, assets, level) {
   }
 
   function drawBossHud(enemies) {
-    const boss = enemies.find(e => (e.kind === 'boss' || e.kind === 'elderBoss') && e.alive);
+    const boss = enemies.find(e => (e.kind === 'boss' || e.kind === 'elderBoss' || e.kind === 'yukino') && e.alive);
     if (!boss) return;
     const ratio = Math.max(0, boss.hp || 0) / (boss.maxHp || 1);
     const x = 260;
     const y = 62;
     const w = 440;
     const h = 18;
-    ctx.fillStyle = 'rgba(15,23,42,.78)';
-    ctx.fillRect(x - 10, y - 8, w + 20, 48);
+    ctx.save();
+    ctx.shadowColor = 'rgba(0,0,0,.42)';
+    ctx.shadowBlur = 8;
+    ctx.shadowOffsetY = 2;
     ctx.fillStyle = '#f8fafc';
     ctx.font = '16px system-ui';
-    ctx.fillText(boss.kind === 'elderBoss' ? '哥布林长老' : '史莱姆国王', x, y + 2);
-    ctx.fillStyle = '#3f1d22';
+    ctx.fillText(boss.kind === 'elderBoss' ? '哥布林长老' : (boss.kind === 'yukino' ? '雪乃' : '史莱姆国王'), x, y + 2);
+    ctx.shadowBlur = 5;
+    ctx.fillStyle = 'rgba(41,16,23,.58)';
     ctx.fillRect(x, y + 13, w, h);
     ctx.fillStyle = '#ef4444';
     ctx.fillRect(x, y + 13, w * ratio, h);
-    ctx.strokeStyle = '#facc15';
-    ctx.lineWidth = 2;
+    ctx.strokeStyle = 'rgba(254,202,202,.72)';
+    ctx.lineWidth = 1.5;
     ctx.strokeRect(x, y + 13, w, h);
+    ctx.restore();
   }
 
   function drawOverlay(player) {
@@ -685,6 +823,7 @@ export function createRenderer(ctx, canvas, assets, level) {
       for (const p of platforms) drawPlatform(p, cameraX);
       for (const s of spikes) drawSpike(s, cameraX);
       drawDeco(cameraX);
+      drawTreehouses(cameraX);
       drawNpcs(cameraX, player);
       drawDoubleJumpItem(cameraX);
       drawHealthPotions(cameraX);

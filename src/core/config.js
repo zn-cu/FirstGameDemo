@@ -1,5 +1,5 @@
 export const TILE = 48;
-export const MAX_HP = 3;
+export const MAX_HP = 15;
 export const MAX_POTIONS = 3;
 export const GRAVITY = 1450;
 export const JUMP_V = -610;

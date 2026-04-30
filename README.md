@@ -1,275 +1,124 @@
-# 猫耳少女的奇幻之旅
+# Fox Platformer Demo
 
-一个基于 HTML5 Canvas + Vite 的横版平台跳跃游戏 demo。当前内容已经包含 4 张地图、普通敌人、多个 Boss、道具奖励、永久能力、血瓶系统、近战和远程攻击、背景音乐和音效。
+一个用 HTML5 Canvas 和 Vite 制作的横版平台动作 demo。当前版本围绕“史莱姆森林 -> 河畔森林 -> 千立学校”的主线推进，并包含树屋、河流和 Boss 房等隐藏地图。
 
-## 运行方式
+## 运行
 
 ```bash
 npm install
 npm run dev
 ```
 
-浏览器打开 Vite 提供的本地地址即可游玩，通常是：
+浏览器打开 Vite 输出的本地地址即可游玩，通常是：
 
 ```text
 http://localhost:5173
 ```
 
-打包构建：
+构建检查：
 
 ```bash
 npm run build
 ```
 
-## 操作说明
+## 操作
 
-- `A / D` 或 `← / →`：左右移动
-- `W / 空格 / ↑`：跳跃
-- `S / ↓`：下蹲
-- `S / ↓ + 空格 / W / ↑`：从单向空中平台向下穿过
+- `A / D` 或方向键左右：移动
+- `W / 空格` 或方向键上：跳跃
+- `S` 或方向键下：下蹲，从单向平台下落
 - `Shift`：冲刺
-- `J` 或鼠标左键：普通近战攻击
-- `K`：获得法杖后释放法球远程攻击
-- `R`：使用血瓶恢复 1 点生命；死亡或通关后按 `R` 重开当前关卡
+- `J` 或鼠标左键：近战攻击
+- `K`：获得法杖后远程攻击
+- `E`：与 NPC、树屋和大门交互
+- `B`：打开或关闭背包
+- `R`：使用血瓶；死亡或通关后重新开始
 
-## 玩家能力
+## 关卡流程
 
-### 基础能力
+### 关卡 1：史莱姆森林
 
-玩家初始拥有移动、跳跃、下蹲、冲刺和普通攻击能力。普通攻击是近距离挥击，每次命中敌人或 Boss 造成 1 点伤害。
+第一章主地图。玩家开局移动一步后触发穿越对白，随后可以和老村长对话接取任务。
 
-### 二段跳
+核心目标是击杀史莱姆并收集 10 个史莱姆粘液。完成后再次和老村长对话，可以获得新手法杖，解锁 `K` 键远程攻击。地图后段的树屋可以进入隐藏地图“史莱姆王庭”。第一关末尾出口在获得法杖后进入主线第二章“河畔森林”。
 
-二段跳是击败第二关史莱姆国王后的奖励。玩家拾取二段跳道具后会弹出提示框，按空格或点击确定关闭。
+### 隐藏地图：史莱姆王庭
 
-二段跳属于永久能力：
+树屋进入的隐藏 Boss 房。进入后入口关闭，击败史莱姆国王后解锁出口。史莱姆国王有 10 点生命，掉落 3 个史莱姆粘液。
 
-- 拾取后死亡不会丢失。
-- 重开当前关卡不会丢失。
-- 返回旧地图后仍然保留。
-- 史莱姆国王只会在玩家第一次未获得二段跳时掉落该道具。
+### 关卡 2：河畔森林
 
-### 法杖远程攻击
+扩充后的森林河畔地图，包含哥布林、平台路线、金币、血瓶和多段河流。第三条河流是假河流，玩家落入后不会扣血，而是进入隐藏地图“水底洞窟”。
 
-法杖是击败第四关哥布林长老后的奖励。拾取法杖后，玩家可以按 `K` 发射绿色法球进行远程攻击。
+河畔森林末尾出口进入第三章“千立学校”。
 
-法杖同样是永久能力：
+### 隐藏地图：水底洞窟
 
-- 第一次击败哥布林长老后掉落。
-- 拾取后永久持有。
-- 死亡或重开不会丢失。
-- 已经获得法杖后，哥布林长老再次被击败不会重复掉落。
+水底洞窟使用独立背景和石头地面素材。Boss 为哥布林长老，击败后通过传送门返回河畔森林开头。
 
-## 生命和道具
+### 关卡 3：千立学校
 
-### 生命值
+学校主题地图，敌人包括普通书本怪和精英书籍怪。精英书籍怪使用链子远程攻击。地图右侧的大门通往隐藏 Boss 房。
 
-玩家最大生命值为 3。受到敌人、Boss 技能、地刺或掉落伤害时会扣血。生命归零后游戏结束，按 `R` 可以重开当前关卡。
+### 隐藏地图：千立学校 Boss 房
 
-### 血瓶
+Boss 为雪乃。雪乃使用 4 帧行走、4 帧投掷攻击动画，并会投掷书包弹道。击败雪乃后右侧出口解锁。
 
-地图中放置了血瓶道具，拾取后会存入背包，不会立刻恢复生命。
+## 系统
 
-血瓶规则：
+- 生命值：玩家最大生命值为 15。
+- 血瓶：最多携带 3 个，每次恢复 2 点生命。
+- 掉落：普通史莱姆掉落 1 个史莱姆粘液，史莱姆国王掉落 3 个。
+- 背包：按 `B` 打开背包，以格子显示材料数量。
+- 法杖：收集 10 个史莱姆粘液并向老村长交任务后解锁。
+- 金币：金币被拾取后不会因为重新进入地图而刷新。
+- 对话：开局旁白只触发一次；老村长支持任务前后不同对话。
+- Boss 门：隐藏 Boss 房会根据 Boss 击败状态开启或关闭出口。
 
-- 玩家最多携带 3 个血瓶。
-- 按 `R` 消耗 1 个血瓶，恢复 1 点生命。
-- 满血时按 `R` 不会消耗血瓶。
-- 没有血瓶时按 `R` 不会产生效果。
-- 死亡或通关状态下，`R` 保持为重开功能。
+## 数值
 
-## 当前关卡
+伤害公式记录在 [docs/numerical-system.md](docs/numerical-system.md)。
 
-### 第一关：森林集市
+```text
+物理伤害 = 攻击力 - 防御力
+魔法伤害 = 魔法攻击力 - 魔法防御力
+```
 
-第一关是基础平台跳跃关卡，用来熟悉移动、跳跃、冲刺和攻击。
+最终伤害有保底，避免出现 0 伤害。
 
-内容包括：
+当前平衡目标是休闲难度：小怪通常 1-2 下能解决，精英怪需要几次攻击，Boss 需要观察技能但不要求长时间反复磨血。
 
-- 多段地面和坑洞
-- 空中单向平台
-- 地刺陷阱
-- 普通史莱姆敌人
-- 金币
-- 血瓶
-- 新手教程提示
-- 通往第二关的出口
+## 主要素材
 
-第一关不会出现二段跳道具。二段跳只会由第二关 Boss 掉落。
+图片位于 `assets/images/`：
 
-### 第二关：史莱姆王庭
+- 玩家：`hero_idle.png`、`hero_walk.png`、`hero_jump.png`、`hero_crouch.png`、`hero_sword_attack.png`、`hero_magic_attack.png`、`hero_avatar.png`
+- 道具：`health_potion.png`、`magic_staff.png`、`magic.png`、`slime_mucus.png`、`backpack_icon.png`
+- 地图：`forest_background.png`、`tiles.png`、`river_strip.png`、`underwater_cave_background.png`、`stone_tiles.png`、`school_background.png`、`school_tiles.png`
+- 入口：`treehouse_entrance.png`、`school_boss_gate.png`
+- 敌人：`enemy_slime.png`、`enemy_goblin_walk.png`、`enemy_goblin_attack.png`、`enemy_book_walk.png`、`enemy_book_attack.png`、`enemy_elite_book_walk.png`、`enemy_elite_book_attack.png`
+- Boss：`boss_slime_king.png`、`boss_slime_king_attack.png`、`boss_goblin_elder.png`、`boss_goblin_elder_skill.png`、`boss_yukino_walk.png`、`boss_yukino_attack.png`、`yukino_bag_projectile.png`
+- NPC：`npc_old_village_chief_idle.png`
 
-第二关是史莱姆国王 Boss 战。地图是全地面 Boss 房间，玩家也可以通过左侧返回门回到第一关末尾。
-
-史莱姆国王能力：
-
-- 普通移动巡逻
-- 远程史莱姆弹
-- 近战跳起下砸
-- Boss 血条显示在屏幕上方
-
-击败史莱姆国王后：
-
-- 第二关出口永久开启。
-- 第一次击败且玩家尚未获得二段跳时，会掉落二段跳道具。
-- 之后再次进入第二关，出口保持开启，不需要重复击败 Boss 才能进入下一关。
-
-### 第三关：河畔森林
-
-第三关是森林和河流主题地图，使用新的森林背景和流动河流素材。
-
-内容包括：
-
-- 森林背景
-- 流动河流危险区域
-- 平台跳跃
-- 哥布林敌人
-- 金币
-- 血瓶
-- 返回第二关的入口
-- 通往第四关的出口
-
-哥布林会在地面巡逻，靠近玩家时会停下并挥刀攻击。
-
-### 第四关：长老密林
-
-第四关沿用第三关的森林/河流地图结构，但变成 Boss 战关卡。
-
-第四关 Boss 是哥布林长老：
-
-- 使用 `boss_goblin_elder.png` 作为 Boss 精灵素材
-- 使用 `boss_goblin_elder_skill.png` 作为绿色亡灵法术攻击素材
-- 拥有 15 点生命值
-- 玩家普通攻击每次造成 1 点伤害，所以需要命中 15 次才能击败
-- 会释放绿色法术弹
-- Boss 血条显示在屏幕上方
-
-第四关使用专属音乐 `elder_boss_theme.wav`，整体更阴森、有压迫感。
-
-击败哥布林长老后：
-
-- 出口开启。
-- 第一次击败且玩家还未获得法杖时，会掉落法杖。
-- 法杖拾取后永久持有。
-
-## 敌人和 Boss
-
-### 普通史莱姆
-
-普通史莱姆会在固定范围内巡逻，并会靠近地刺前反向，避免踩到地刺。玩家可以通过攻击或踩踏击败。
-
-### 哥布林
-
-哥布林出现在第三关。它有独立行走素材和攻击素材：
-
-- `enemy_goblin_walk.png`
-- `enemy_goblin_attack.png`
-
-哥布林会巡逻，玩家靠近时使用近战挥刀攻击。
-
-### 史莱姆国王
-
-第二关 Boss。拥有远程攻击和近战下砸，是二段跳能力的来源。
-
-素材：
-
-- `boss_slime_king.png`
-- `boss_slime_king_attack.png`
-
-### 哥布林长老
-
-第四关 Boss。拥有高血量和绿色法术弹，是法杖能力的来源。
-
-素材：
-
-- `boss_goblin_elder.png`
-- `boss_goblin_elder_skill.png`
-
-## 音频内容
-
-当前音频文件位于 `assets/audio/`：
-
-- `scene_theme.wav`：普通场景背景音乐
-- `boss_theme.wav`：史莱姆 Boss 战音乐
-- `elder_boss_theme.wav`：第四关哥布林长老 Boss 战音乐，氛围更阴森压迫
-- `player_attack.wav`：玩家普通攻击音效
-- `boss_ranged.wav`：Boss 远程攻击/法球类音效
-- `boss_melee.wav`：Boss 近战攻击音效
-- `boss_defeated.wav`：Boss 击败音效
-
-浏览器需要用户首次按键或点击后才能解锁音频播放。
-
-## 图片素材
-
-图片素材位于 `assets/images/`：
-
-- `hero_idle.png`：玩家待机
-- `hero_walk.png`：玩家行走/跳跃帧
-- `hero_crouch.png`：玩家下蹲
-- `attack_slash.png`：玩家普通攻击特效
-- `hero_staff_projectile.png`：玩家法杖远程法球
-- `magic_staff.png`：法杖掉落道具
-- `health_potion.png`：血瓶道具
-- `enemy_slime.png`：普通史莱姆
-- `enemy_goblin_walk.png`：哥布林行走
-- `enemy_goblin_attack.png`：哥布林攻击
-- `boss_slime_king.png`：史莱姆国王
-- `boss_slime_king_attack.png`：史莱姆国王攻击
-- `boss_goblin_elder.png`：哥布林长老 Boss
-- `boss_goblin_elder_skill.png`：哥布林长老技能
-- `forest_background.png`：森林背景
-- `river_strip.png`：流动河流贴图
-- `tiles.png`：地面、平台、金币、传送门、地刺等 tile 图集
+音频位于 `assets/audio/`，包括场景音乐、Boss 音乐、攻击音效和 Boss 击败音效。
 
 ## 项目结构
 
 ```text
 assets/
-  audio/                背景音乐和音效 wav 文件
-  images/               玩家、敌人、Boss、道具、背景和特效图片
+  audio/                音乐和音效
+  images/               角色、敌人、Boss、道具和地图素材
+
+docs/
+  numerical-system.md   数值、伤害公式和攻防配置
 
 src/
-  core/
-    assets.js           图片资源加载
-    audio.js            音频加载、播放和音乐切换
-    collision.js        矩形碰撞检测
-    config.js           全局配置，如生命值、跳跃、冲刺、血瓶上限
-
-  data/
-    levels.js           关卡数据、地图物件、敌人出生点、永久进度
-
-  render/
-    renderer.js         Canvas 绘制、背景、HUD、敌人、道具和特效渲染
-
-  systems/
-    attack.js           玩家普通近战攻击
-    enemies.js          普通敌人、Boss 行为和敌方攻击
-    player.js           玩家移动、跳跃、冲刺、受伤、能力和血瓶逻辑
-
-  main.js               游戏主循环、输入处理、关卡切换、掉落和远程攻击
-  style.css             页面样式
+  core/                 资源、音频、碰撞和全局配置
+  data/                 关卡数据、进度状态和数值配置
+  render/               Canvas 渲染、HUD、背景和特效
+  systems/              玩家、敌人和攻击逻辑
+  main.js               主循环、输入、关卡切换、掉落和对话
 ```
 
-## 进度和永久状态
+## 清理说明
 
-当前 demo 内部已经有一些运行期进度状态：
-
-- `bossDefeated`：史莱姆国王是否已经被击败过
-- `elderBossDefeated`：哥布林长老是否已经被击败过
-- `staffUnlocked`：玩家是否已经获得法杖
-- `player.hasDoubleJump`：玩家是否拥有二段跳
-- `player.hasStaff`：玩家是否拥有法杖
-
-这些状态目前存在于运行内存中，刷新网页后会重置。后续如果要做正式存档，可以把这些状态写入 `localStorage` 或独立存档系统。
-
-## 已知设计方向
-
-这个 demo 目前已经具备一个小型横版动作游戏的基础骨架。后续可以继续扩展：
-
-- 增加更多地图主题
-- 增加正式存档
-- 增加角色受击/施法动画
-- 增加更多法杖技能
-- 给第四关 Boss 增加更多阶段变化
-- 补充暂停菜单、设置菜单和音量调节
-- 优化 UI 字体和提示样式
+本次整理已移除第一关通往第三章的测试入口，以及对应的测试入口渲染和碰撞代码。项目中旧的未引用素材 `hero_staff_projectile.png`、本地预览输出、构建产物、日志和编辑器临时目录也已清理。

@@ -1,7 +1,8 @@
 import { createAudio } from './core/audio.js';
 import { loadAssets } from './core/assets.js';
 import { rects } from './core/collision.js';
-import { back, coins, doubleJumpItem, enemyStart, flowers, goal, grounds, healthPotions, levelInfo, levels, loadLevel, markCoinCollected, npcs, platforms, progress, rivers, spikes, staffItem, start, tutorials, world } from './data/levels.js';
+import { back, bossDoors, coins, doubleJumpItem, enemyStart, flowers, goal, grounds, healthPotions, levelInfo, levels, loadLevel, markCoinCollected, npcs, platforms, progress, rivers, spikes, staffItem, start, treehouses, tutorials, world } from './data/levels.js';
+import { calculateEnemyDamage, calculatePlayerDamage } from './data/stats.js';
 import { createRenderer } from './render/renderer.js';
 import { attackActive, attackRect, createAttack, resetAttack, startAttack, updateAttack } from './systems/attack.js';
 import { createEnemies, updateEnemies } from './systems/enemies.js';
@@ -16,18 +17,18 @@ const audio = createAudio();
 
 loadLevel(0);
 const assets = await loadAssets();
-const renderer = createRenderer(ctx, canvas, assets, { back, coins, doubleJumpItem, flowers, goal, grounds, healthPotions, levelInfo, npcs, platforms, rivers, spikes, staffItem, tutorials });
+const renderer = createRenderer(ctx, canvas, assets, { back, bossDoors, coins, doubleJumpItem, flowers, goal, grounds, healthPotions, levelInfo, npcs, platforms, rivers, spikes, staffItem, treehouses, tutorials });
 
 let enemies = [], bubbles = [], materialDrops = [], particles = [], playerProjectiles = [];
 let cameraX = 0, screenShake = 0, hurtFlash = 0, modal = null, dialogue = null, last = performance.now();
 let inventoryOpen = false;
 let jumpLatch = false, attackLatch = false, dashLatch = false, staffLatch = false, interactLatch = false, staffCooldown = 0;
-let introDialogueShown = false, introMoveDistance = 0, lastPlayerX = 0;
+let introDialogueShown = false, lockedForestExitDialogueShown = false, introMoveDistance = 0, lastPlayerX = 0;
 const attack = createAttack();
 const staffCast = { duration: .38, releaseAt: .18, timer: 0, frames: 6, drawW: 150, drawH: 94, dir: 1, fired: false };
 const player = createPlayer(start);
 const inventory = { slimeMucus: 0 };
-const quest = { oldVillageChiefIntroDone: false, staffRewarded: false };
+const quest = { oldVillageChiefIntroDone: false, staffRewarded: false, introDialogueDone: false };
 lastPlayerX = player.x;
 
 const introDialogue = [
@@ -38,11 +39,15 @@ const introDialogue = [
 ];
 
 const staffRewardDialogue = [
-  { speaker: '老村长', text: '年轻人你非常的勇敢，这个新手法杖就交给你了。' },
+  { speaker: '老村长', text: '年轻人你非常的勇敢，这个新手法杖就交给你了。对了，前方河畔森林处的河流下藏身着哥布林长老，千万小心。' },
+];
+
+const lockedForestExitDialogue = [
+  { speaker: '玩家', text: '先帮村长完成任务吧。' },
 ];
 
 function makeEnemies() { enemies = createEnemies(enemyStart); }
-function musicForLevel(index) { return index === 3 ? 'elderBoss' : (index === 1 ? 'boss' : 'scene'); }
+function musicForLevel(index) { return index === 3 ? 'elderBoss' : (index === 1 || index === 5 ? 'boss' : 'scene'); }
 function resetEphemeral() {
   resetAttack(attack);
   makeEnemies();
@@ -70,7 +75,8 @@ function reset() {
   cameraX = 0;
   lastPlayerX = player.x;
   if (levelInfo.index === 0) {
-    introDialogueShown = false;
+    introDialogueShown = quest.introDialogueDone;
+    lockedForestExitDialogueShown = false;
     introMoveDistance = 0;
   }
 }
@@ -120,6 +126,7 @@ function unlockStaffReward() {
   quest.staffRewarded = true;
   player.hasStaff = true;
   progress.staffUnlocked = true;
+  if (levelInfo.index === 0) levelInfo.goalUnlocked = true;
   modal = { title: '获得武器', message: '你获得了新手法杖，可以释放法球', hint: '按空格或点击确定继续' };
 }
 
@@ -154,11 +161,15 @@ addEventListener('keyup', e => keys.delete(e.code));
 addEventListener('mousedown', e => { audio.unlock(); if (dialogue) { advanceDialogue(); return; } if (modal) { closeModal(); return; } if (e.button === 0) keys.add('MouseLeft'); });
 addEventListener('mouseup', e => { if (e.button === 0) keys.delete('MouseLeft'); });
 
-function takeDamage(source = 'hit') {
-  if (takePlayerDamage(player, source)) {
+function takeDamage(source = 'hit', amount = 1) {
+  const sourceInfo = typeof source === 'object' ? source : { source, amount };
+  const damageAmount = sourceInfo.attacker || sourceInfo.attackerKind
+    ? calculateEnemyDamage(sourceInfo.attacker ?? sourceInfo.attackerKind, sourceInfo.type ?? 'physical')
+    : (sourceInfo.amount ?? amount);
+  if (takePlayerDamage(player, sourceInfo.source ?? 'hit', damageAmount)) {
     screenShake = .28;
     hurtFlash = .32;
-    if (source === 'fall') bubbles = [];
+    if ((sourceInfo.source ?? source) === 'fall') bubbles = [];
   }
 }
 function spawnDeathFx(x, y) {
@@ -186,9 +197,10 @@ function spawnSlimeMucusDrops(e, amount) {
     });
   }
 }
-function defeatEnemy(e) {
-  if (e.hp && e.hp > 1) {
-    e.hp--;
+function defeatEnemy(e, type = 'physical') {
+  const damage = calculatePlayerDamage(e, type);
+  e.hp = Math.max(0, (e.hp ?? 1) - damage);
+  if (e.hp > 0) {
     screenShake = .18;
     player.stompCount++;
     return;
@@ -199,10 +211,17 @@ function defeatEnemy(e) {
   spawnDeathFx(e.x, e.y);
   if (!e.kind || e.kind === 'slime') spawnSlimeMucusDrops(e, 1);
   if (e.kind === 'boss') spawnSlimeMucusDrops(e, 3);
-  if (e.kind === 'boss' || e.kind === 'elderBoss') {
+  if (e.kind === 'boss' || e.kind === 'elderBoss' || e.kind === 'yukino') {
     audio.bossDefeated();
-    if (e.kind === 'boss') progress.bossDefeated = true;
+    if (e.kind === 'boss') {
+      progress.bossDefeated = true;
+      const currentLevel = levels[levelInfo.index];
+      if (currentLevel.backLocked && currentLevel.backUnlockProgress === 'bossDefeated') {
+        Object.assign(back, currentLevel.back);
+      }
+    }
     if (e.kind === 'elderBoss') progress.elderBossDefeated = true;
+    if (e.kind === 'yukino') progress.yukinoDefeated = true;
     levelInfo.goalUnlocked = true;
     screenShake = .38;
     if (e.kind === 'boss' && !player.hasDoubleJump) Object.assign(doubleJumpItem, { active: true, x: e.x + e.w / 2 - 17, y: e.y - 34, w: 34, h: 28, taken: false, float: Math.random() * 6 });
@@ -311,11 +330,12 @@ function update(dt) {
   if (staffPressed && player.hasStaff && !player.crouching && staffCooldown <= 0 && attack.timer <= 0) fireStaff();
 
   updatePlayer(player, { dashPressed, down, jumpPressed, left, right }, dt, { grounds, platforms, spikes, world });
-  if (levelInfo.index === 0 && !introDialogueShown) {
+  if (levelInfo.index === 0 && !quest.introDialogueDone) {
     introMoveDistance += Math.abs(player.x - lastPlayerX);
     lastPlayerX = player.x;
-    if (introMoveDistance >= 96) {
+    if (introMoveDistance >= 32) {
       introDialogueShown = true;
+      quest.introDialogueDone = true;
       startDialogue(introDialogue);
       return;
     }
@@ -327,6 +347,10 @@ function update(dt) {
   const riverUnderfoot = rivers.find(r => rects(footRect(player), r));
   if (riverUnderfoot?.hiddenLevel !== undefined) { enterLevel(riverUnderfoot.hiddenLevel); return; }
   if (riverUnderfoot) { takeDamage('fall'); return; }
+  const treehouse = treehouses.find(t => rects(player, t.entry ?? t));
+  if (treehouse) { enterLevel(treehouse.targetLevelIndex ?? 1); return; }
+  const bossDoor = bossDoors.find(door => rects(player, door.entry ?? door));
+  if (bossDoor) { enterLevel(bossDoor.targetLevelIndex ?? levelInfo.index); return; }
 
   for (const [coinIndex, c] of coins.entries()) if (!c.taken && rects(player, c)) { c.taken = true; markCoinCollected(levelInfo.index, coinIndex); player.coins++; }
   for (const potion of healthPotions) if (!potion.taken && rects(player, potion) && addHealthPotion(player)) { potion.taken = true; spawnPickupFx(potion, 'rgba(248,113,113,'); }
@@ -358,7 +382,7 @@ function update(dt) {
       if (!e.alive || shot.hitIds.has(e.id) || !rects(shot, e)) continue;
       shot.hitIds.add(e.id);
       shot.life = 0;
-      defeatEnemy(e);
+      defeatEnemy(e, 'magic');
       break;
     }
     if (grounds.some(g => rects(shot, g)) || platforms.some(p => rects(shot, p))) shot.life = 0;
@@ -368,22 +392,43 @@ function update(dt) {
   for (const b of bubbles) {
     b.x += b.vx * dt;
     b.y += b.vy * dt + Math.sin(player.time * 7 + b.float) * 10 * dt;
-    b.vy += 42 * dt;
+    b.age = (b.age ?? 0) + dt;
+    b.vy += (b.gravity ?? 42) * dt;
     b.life -= dt;
-    if (rects(player, b)) { popBubble(b); b.life = 0; takeDamage(); return; }
+    if (rects(player, b)) {
+      popBubble(b);
+      b.life = 0;
+      takeDamage({ attackerKind: b.ownerKind ?? 'slime', type: b.damageType ?? 'magic' });
+      return;
+    }
     if (grounds.some(g => rects(b, g)) || platforms.some(p => rects(b, p)) || b.x < cameraX - 80 || b.x > cameraX + W + 80) { popBubble(b); b.life = 0; }
   }
   bubbles = bubbles.filter(b => b.life > 0);
   for (const p of particles) { p.x += p.vx * dt; p.y += p.vy * dt; p.vy += 480 * dt; p.life -= dt; }
   particles = particles.filter(p => p.life > 0);
 
-  if (back.w > 0 && rects(player, back)) { const targetIndex = Math.max(0, levelInfo.index - 1); enterLevel(targetIndex, levels[targetIndex].returnStart ?? start); return; }
+  if (back.w > 0 && rects(player, back)) {
+    const currentLevel = levels[levelInfo.index];
+    const targetIndex = currentLevel.backTargetLevelIndex ?? Math.max(0, levelInfo.index - 1);
+    enterLevel(targetIndex, currentLevel.backSpawn ?? levels[targetIndex].returnStart ?? start);
+    return;
+  }
+  if (!levelInfo.goalUnlocked && levelInfo.index === 0 && rects(player, goal) && !lockedForestExitDialogueShown) {
+    lockedForestExitDialogueShown = true;
+    startDialogue(lockedForestExitDialogue);
+    return;
+  }
   if (levelInfo.goalUnlocked && rects(player, goal)) {
     const currentLevel = levels[levelInfo.index];
     if (currentLevel.goalAction === 'win') { player.won = true; return; }
     if (currentLevel.goalAction === 'returnToLevel') {
       const targetIndex = currentLevel.returnLevelIndex ?? 0;
       enterLevel(targetIndex, levels[targetIndex].start ?? start);
+      return;
+    }
+    if (currentLevel.goalAction === 'goToLevel') {
+      const targetIndex = currentLevel.targetLevelIndex ?? Math.min(levelInfo.index + 1, levels.length - 1);
+      enterLevel(targetIndex);
       return;
     }
     if (levelInfo.index < levels.length - 1) { enterLevel(levelInfo.index + 1); return; }

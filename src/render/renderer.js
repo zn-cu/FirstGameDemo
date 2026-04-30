@@ -16,6 +16,7 @@ export function createRenderer(ctx, canvas, assets, level) {
     heroSwordAttack,
     heroMagicAttack,
     heroCrouch,
+    heroAvatar,
     tiles,
     enemySlime,
     bossSlimeKing,
@@ -23,21 +24,30 @@ export function createRenderer(ctx, canvas, assets, level) {
     enemyGoblinWalk,
     enemyGoblinAttack,
     forestBackground,
+    underwaterBackground,
+    stoneTiles,
     riverStrip,
     healthPotion,
+    slimeMucus,
+    backpackIcon,
     bossGoblinElder,
     bossGoblinElderSkill,
     magicStaff,
-    magicProjectile
+    magicProjectile,
+    npcOldVillageChiefIdle
   } = assets;
-  const { back, coins, doubleJumpItem, flowers, goal, grounds, healthPotions, levelInfo, platforms, rivers, spikes, staffItem, tutorials } = level;
+  const { back, coins, doubleJumpItem, flowers, goal, grounds, healthPotions, levelInfo, npcs, platforms, rivers, spikes, staffItem, tutorials } = level;
   const W = canvas.width;
   const H = canvas.height;
 
   function sx(i) { return i * 64; }
 
-  function drawSpriteTile(tileIndex, x, y, cameraX, w = TILE, h = TILE) {
-    ctx.drawImage(tiles, sx(tileIndex), 0, 64, 64, Math.floor(x - cameraX), Math.floor(y), w, h);
+  function terrainTiles() {
+    return levelInfo.theme === 'underwater' ? stoneTiles : tiles;
+  }
+
+  function drawSpriteTile(tileIndex, x, y, cameraX, w = TILE, h = TILE, source = terrainTiles()) {
+    ctx.drawImage(source, sx(tileIndex), 0, 64, 64, Math.floor(x - cameraX), Math.floor(y), w, h);
   }
 
   function drawGround(g, cameraX) {
@@ -63,7 +73,7 @@ export function createRenderer(ctx, canvas, assets, level) {
 
   function drawSpike(s, cameraX) {
     for (let x = s.x; x < s.x + s.w; x += 32) {
-      ctx.drawImage(tiles, sx(4), 0, 64, 64, Math.floor(x - cameraX), s.y - 16, 48, 58);
+      ctx.drawImage(terrainTiles(), sx(4), 0, 64, 64, Math.floor(x - cameraX), s.y - 16, 48, 58);
     }
   }
 
@@ -102,6 +112,16 @@ export function createRenderer(ctx, canvas, assets, level) {
       ctx.drawImage(forestBackground, offset + W, 0, W, H);
       if (offset > 0) ctx.drawImage(forestBackground, offset - W, 0, W, H);
       ctx.fillStyle = 'rgba(4,19,20,.18)';
+      ctx.fillRect(0, 0, W, H);
+      return;
+    }
+
+    if (levelInfo.theme === 'underwater') {
+      const offset = -((cameraX * .12) % W);
+      ctx.drawImage(underwaterBackground, offset, 0, W, H);
+      ctx.drawImage(underwaterBackground, offset + W, 0, W, H);
+      if (offset > 0) ctx.drawImage(underwaterBackground, offset - W, 0, W, H);
+      ctx.fillStyle = 'rgba(2,13,25,.16)';
       ctx.fillRect(0, 0, W, H);
       return;
     }
@@ -152,37 +172,33 @@ export function createRenderer(ctx, canvas, assets, level) {
     }
   }
 
-  function drawTutorials(cameraX) {
-    for (const tutorial of tutorials) {
-      const x = Math.floor(tutorial.x - cameraX);
-      if (x < -160 || x > W + 160) continue;
-      const y = tutorial.y;
-      ctx.save();
-      ctx.font = '14px system-ui';
-      ctx.textBaseline = 'middle';
-      let cursor = x;
-      for (const key of tutorial.keys) {
-        const width = Math.max(46, ctx.measureText(key).width + 22);
-        ctx.fillStyle = 'rgba(248,250,252,.92)';
-        ctx.strokeStyle = 'rgba(15,23,42,.75)';
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.roundRect(cursor, y, width, 30, 6);
-        ctx.fill();
-        ctx.stroke();
-        ctx.fillStyle = '#0f172a';
-        ctx.fillText(key, cursor + 11, y + 15);
-        cursor += width + 8;
-        if (key !== tutorial.keys[tutorial.keys.length - 1]) {
-          ctx.fillStyle = '#e2e8f0';
-          ctx.fillText('+', cursor - 2, y + 15);
-          cursor += 16;
-        }
+  function drawNpcs(cameraX, player) {
+    const time = performance.now() / 1000;
+    for (const npc of npcs) {
+      const x = Math.floor(npc.x - cameraX);
+      if (x < -npc.w || x > W + npc.w) continue;
+      if (npc.kind !== 'oldVillageChief') continue;
+      const frames = npc.frames ?? 4;
+      const frame = Math.floor(time * 2.4) % frames;
+      const sw = npcOldVillageChiefIdle.width / frames;
+      const sh = npcOldVillageChiefIdle.height;
+      ctx.drawImage(npcOldVillageChiefIdle, frame * sw, 0, sw, sh, x, npc.y, npc.w, npc.h);
+
+      const playerCenter = player.x + player.w / 2;
+      const npcCenter = npc.x + npc.w / 2;
+      const dx = npcCenter - playerCenter;
+      const close = Math.abs(dx) < 92 && Math.abs((player.y + player.h) - (npc.y + npc.h)) < 48;
+      const facing = Math.abs(dx) < 18 || Math.sign(dx) === player.dir;
+      if (close && facing && levelInfo.index === 0) {
+        ctx.save();
+        ctx.font = '14px system-ui';
+        ctx.textBaseline = 'middle';
+        ctx.fillStyle = 'rgba(15,23,42,.72)';
+        ctx.fillRect(x + 2, npc.y - 30, 72, 24);
+        ctx.fillStyle = '#f8fafc';
+        ctx.fillText('E 对话', x + 14, npc.y - 18);
+        ctx.restore();
       }
-      ctx.fillStyle = '#f8fafc';
-      ctx.font = '13px system-ui';
-      ctx.fillText(tutorial.label, x, y + 45);
-      ctx.restore();
     }
   }
 
@@ -237,6 +253,15 @@ export function createRenderer(ctx, canvas, assets, level) {
       if (potion.taken) continue;
       const bob = Math.sin(performance.now() / 230 + potion.float) * 4;
       ctx.drawImage(healthPotion, Math.floor(potion.x - cameraX), Math.floor(potion.y + bob), potion.w, potion.h);
+    }
+  }
+
+  function drawMaterialDrops(materialDrops, cameraX) {
+    for (const drop of materialDrops) {
+      if (drop.taken) continue;
+      const bob = Math.sin(performance.now() / 220 + drop.float) * 2;
+      const source = drop.kind === 'slimeMucus' ? slimeMucus : slimeMucus;
+      ctx.drawImage(source, Math.floor(drop.x - cameraX), Math.floor(drop.y + bob), drop.w, drop.h);
     }
   }
 
@@ -432,17 +457,45 @@ export function createRenderer(ctx, canvas, assets, level) {
   }
 
   function drawHud(player) {
-    ctx.fillStyle = 'rgba(10,14,24,.62)';
-    ctx.fillRect(18, 18, 336, 36);
+    const x = 18;
+    const y = 18;
+    const avatarSize = 62;
+    const hpRatio = Math.max(0, Math.min(1, player.hp / MAX_HP));
+    ctx.save();
+    ctx.shadowColor = 'rgba(0,0,0,.38)';
+    ctx.shadowBlur = 10;
+    ctx.shadowOffsetY = 2;
+    ctx.drawImage(heroAvatar, x, y, avatarSize, avatarSize);
+    ctx.restore();
+
+    const barX = x + avatarSize + 14;
+    const barY = y + 13;
+    const barW = 184;
+    const barH = 12;
+    ctx.save();
+    ctx.shadowColor = 'rgba(0,0,0,.34)';
+    ctx.shadowBlur = 5;
+    ctx.shadowOffsetY = 1;
+    ctx.fillStyle = 'rgba(24,11,18,.72)';
+    ctx.fillRect(barX + 2, barY + 2, barW - 4, barH - 4);
+    ctx.fillStyle = '#ef4444';
+    ctx.fillRect(barX + 2, barY + 2, (barW - 4) * hpRatio, barH - 4);
+    ctx.strokeStyle = 'rgba(254,202,202,.9)';
+    ctx.lineWidth = 1.5;
+    ctx.strokeRect(barX, barY, barW, barH);
+    ctx.restore();
     ctx.fillStyle = '#fff7dc';
-    ctx.font = '15px system-ui';
-    ctx.fillText(`生命 ${'❤'.repeat(Math.max(0, player.hp))}${'♡'.repeat(Math.max(0, MAX_HP - player.hp))}`, 30, 41);
+    ctx.font = '12px system-ui';
+    ctx.fillText(`${player.hp}/${MAX_HP}`, barX + barW + 8, barY + 10);
+
+    const rowY = barY + 28;
+    ctx.drawImage(tiles, sx(5), 0, 64, 64, barX, rowY - 5, 24, 24);
     ctx.fillStyle = '#fde68a';
-    ctx.fillText(`金币 ${player.coins}/${coins.length}`, 128, 41);
-    ctx.drawImage(healthPotion, 244, 20, 24, 24);
+    ctx.font = '14px system-ui';
+    ctx.fillText(`${player.coins}`, barX + 30, rowY + 13);
+    ctx.drawImage(healthPotion, barX + 100, rowY - 3, 22, 22);
     ctx.fillStyle = '#fecdd3';
-    ctx.fillText(`${player.healthPotions}/${MAX_POTIONS}`, 272, 41);
-    if (player.hasStaff) ctx.drawImage(magicStaff, 320, 18, 26, 26);
+    ctx.fillText(`${player.healthPotions}/${MAX_POTIONS}`, barX + 128, rowY + 13);
 
     const levelText = `关卡 ${levelInfo.index + 1}-${levelInfo.name}`;
     ctx.font = '15px system-ui';
@@ -452,6 +505,63 @@ export function createRenderer(ctx, canvas, assets, level) {
     ctx.fillStyle = '#d8b4fe';
     ctx.fillText(levelText, W - levelW - 30, 41);
 
+  }
+
+  function drawInventoryPanel(inventory) {
+    const panelW = 456;
+    const panelH = 354;
+    const x = W / 2 - panelW / 2;
+    const y = H / 2 - panelH / 2;
+    const slot = 58;
+    const gap = 10;
+    const startX = x + 34;
+    const startY = y + 88;
+    ctx.save();
+    ctx.fillStyle = 'rgba(2,6,23,.58)';
+    ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = 'rgba(15,23,42,.96)';
+    ctx.strokeStyle = '#38bdf8';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.roundRect(x, y, panelW, panelH, 8);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.drawImage(backpackIcon, x + 28, y + 24, 42, 42);
+    ctx.fillStyle = '#f8fafc';
+    ctx.font = '24px system-ui';
+    ctx.fillText('背包', x + 82, y + 52);
+    ctx.fillStyle = '#94a3b8';
+    ctx.font = '13px system-ui';
+    ctx.fillText('B 关闭', x + panelW - 78, y + 50);
+
+    for (let row = 0; row < 4; row++) {
+      for (let col = 0; col < 6; col++) {
+        const sx0 = startX + col * (slot + gap);
+        const sy0 = startY + row * (slot + gap);
+        ctx.fillStyle = 'rgba(30,41,59,.82)';
+        ctx.strokeStyle = 'rgba(148,163,184,.46)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.roundRect(sx0, sy0, slot, slot, 6);
+        ctx.fill();
+        ctx.stroke();
+      }
+    }
+
+    const count = inventory.slimeMucus ?? 0;
+    if (count > 0) {
+      ctx.drawImage(slimeMucus, startX + 9, startY + 7, 40, 40);
+      ctx.fillStyle = 'rgba(2,6,23,.78)';
+      ctx.fillRect(startX + 31, startY + 38, 24, 16);
+      ctx.fillStyle = '#e0f2fe';
+      ctx.font = '13px system-ui';
+      ctx.fillText(`${count}`, startX + 36, startY + 51);
+      ctx.fillStyle = '#bae6fd';
+      ctx.font = '14px system-ui';
+      ctx.fillText('史莱姆粘液', startX, startY + slot + 24);
+    }
+    ctx.restore();
   }
 
   function drawBossHud(enemies) {
@@ -516,9 +626,57 @@ export function createRenderer(ctx, canvas, assets, level) {
     ctx.restore();
   }
 
+  function wrapText(text, maxWidth) {
+    const lines = [];
+    let line = '';
+    for (const ch of Array.from(text)) {
+      const next = line + ch;
+      if (ctx.measureText(next).width > maxWidth && line) {
+        lines.push(line);
+        line = ch;
+      } else {
+        line = next;
+      }
+    }
+    if (line) lines.push(line);
+    return lines;
+  }
+
+  function drawDialogue(dialogue) {
+    if (!dialogue) return;
+    const line = dialogue.lines[dialogue.index];
+    const x = 82;
+    const y = H - 162;
+    const w = W - 164;
+    const h = 126;
+    ctx.save();
+    ctx.fillStyle = 'rgba(2,6,23,.76)';
+    ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = 'rgba(15,23,42,.95)';
+    ctx.strokeStyle = line.speaker === '老村长' ? '#38bdf8' : '#facc15';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.roundRect(x, y, w, h, 8);
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = line.speaker === '老村长' ? '#7dd3fc' : '#fde68a';
+    ctx.font = '18px system-ui';
+    ctx.fillText(line.speaker, x + 24, y + 32);
+    ctx.fillStyle = '#f8fafc';
+    ctx.font = '18px system-ui';
+    const lines = wrapText(line.text, w - 48);
+    for (let i = 0; i < Math.min(lines.length, 3); i++) {
+      ctx.fillText(lines[i], x + 24, y + 64 + i * 25);
+    }
+    ctx.fillStyle = '#94a3b8';
+    ctx.font = '13px system-ui';
+    ctx.fillText('E / 空格 / 回车 继续', x + w - 152, y + h - 18);
+    ctx.restore();
+  }
+
   return {
     draw(state) {
-      const { attack, bubbles, cameraX, enemies, hurtFlash, modal, particles, player, playerProjectiles, screenShake, staffCast } = state;
+      const { attack, bubbles, cameraX, dialogue, enemies, hurtFlash, inventory, inventoryOpen, materialDrops, modal, particles, player, playerProjectiles, screenShake, staffCast } = state;
       const shake = screenShake > 0 ? screenShake / .28 : 0;
       ctx.setTransform(1, 0, 0, 1, (Math.random() * 2 - 1) * 8 * shake, (Math.random() * 2 - 1) * 5 * shake);
       drawBackground(cameraX);
@@ -527,9 +685,10 @@ export function createRenderer(ctx, canvas, assets, level) {
       for (const p of platforms) drawPlatform(p, cameraX);
       for (const s of spikes) drawSpike(s, cameraX);
       drawDeco(cameraX);
-      drawTutorials(cameraX);
+      drawNpcs(cameraX, player);
       drawDoubleJumpItem(cameraX);
       drawHealthPotions(cameraX);
+      drawMaterialDrops(materialDrops, cameraX);
       drawStaffItem(cameraX);
 
       ctx.save();
@@ -558,6 +717,8 @@ export function createRenderer(ctx, canvas, assets, level) {
       drawBossHud(enemies);
       drawOverlay(player);
       drawModal(modal);
+      drawDialogue(dialogue);
+      if (inventoryOpen) drawInventoryPanel(inventory);
     }
   };
 }

@@ -35,10 +35,7 @@ export const spikes = [
 export const rivers = [];
 export const flowers = [[78,356],[405,354],[725,356],[1030,356],[1360,356],[1690,356],[2070,356],[2570,356],[2920,356]].map(([x,y]) => [x, y + GROUND_SHIFT]);
 
-export const tutorials = [
-  { x: 210, y: 282 + GROUND_SHIFT, keys: ['空格'], label: '跳跃' },
-  { x: 785, y: 214 + GROUND_SHIFT, keys: ['空格', 'Shift'], label: '跳跃冲刺' },
-];
+export const tutorials = [];
 
 export const coins = [];
 export const healthPotions = [];
@@ -57,6 +54,7 @@ addCoinLine(2750, 350 + GROUND_SHIFT, 3);
 
 export const doubleJumpItem = { active: false, x: 0, y: 0, w: 34, h: 28, taken: true, float: 0 };
 export const staffItem = { active: false, x: 0, y: 0, w: 34, h: 34, taken: true, float: 0 };
+export const npcs = [];
 
 export const enemyStart = [
   { x: 890, y: GROUND_Y - 38, w: 48, h: 38, vx: -55, min: 700, max: 1020 },
@@ -65,19 +63,19 @@ export const enemyStart = [
   { x: 2670, y: GROUND_Y - 38, w: 48, h: 38, vx: -75, min: 2550, max: 2920 },
 ];
 
-export const levelInfo = { index: 0, name: '森林集市', goalUnlocked: true, theme: 'market' };
+export const levelInfo = { index: 0, name: '史莱姆森林', goalUnlocked: true, theme: 'market' };
 export const progress = {
   bossDefeated: false,
   elderBossDefeated: false,
-  staffUnlocked: true
+  staffUnlocked: false
 };
 
 const levelOne = {
-  name: '森林集市',
+  name: '史莱姆森林',
   theme: 'market',
   world: { w: 3000, h: 540 },
   start: { x: 96, y: GROUND_Y - STAND_H },
-  returnStart: { x: 2700, y: GROUND_Y - STAND_H },
+  returnStart: { x: 2400, y: GROUND_Y - STAND_H },
   goal: { x: 2860, y: 332 + GROUND_SHIFT, w: 44, h: 88 },
   goalLocked: false,
   back: null,
@@ -86,7 +84,22 @@ const levelOne = {
   spikes: spikes.map(s => ({ ...s })),
   rivers: [],
   flowers: flowers.map(f => [...f]),
-  tutorials: tutorials.map(t => ({ ...t, keys: [...t.keys] })),
+  tutorials: [],
+  npcs: [
+    {
+      kind: 'oldVillageChief',
+      x: 190,
+      y: GROUND_Y - 82,
+      w: 58,
+      h: 82,
+      frames: 4,
+      dialogue: [
+        { speaker: '玩家', text: '老爷子，这里是什么地方，我应该怎么离开这里。' },
+        { speaker: '老村长', text: '这里是巴拉村落东边的史莱姆森林，里面居住着一些史莱姆，穿过这片森林往东走便是巴拉村落。' },
+        { speaker: '老村长', text: '年轻人，最近森林里史莱姆繁殖数量越来越多了。你能帮村子收集十个史莱姆粘液吗。作为报答，我会给你我年轻时使用过的法杖（解锁远程攻击）。' },
+      ],
+    },
+  ],
   doubleJumpItem: null,
   staffItem: null,
   enemyStart: enemyStart.map(e => ({ ...e })),
@@ -112,6 +125,7 @@ const levelTwo = {
   rivers: [],
   flowers: [[120,356],[360,356],[620,356],[1180,356],[1490,356]].map(([x,y]) => [x, y + GROUND_SHIFT]),
   tutorials: [],
+  npcs: [],
   doubleJumpItem: null,
   staffItem: null,
   enemyStart: [
@@ -148,13 +162,11 @@ const levelThree = {
   rivers: [
     { x: 520, y: GROUND_Y, w: 160, h: 66 },
     { x: 1240, y: GROUND_Y, w: 220, h: 66 },
-    { x: 1880, y: GROUND_Y, w: 160, h: 66 },
+    { x: 1880, y: GROUND_Y, w: 160, h: 66, hiddenLevel: 3 },
   ],
   flowers: [[90,356],[340,356],[760,356],[1040,356],[1500,356],[1760,356],[2120,356],[2380,356]].map(([x,y]) => [x, y + GROUND_SHIFT]),
-  tutorials: [
-    { x: 540, y: 270 + GROUND_SHIFT, keys: ['空格', 'Shift'], label: '越过河流' },
-    { x: 1218, y: 214 + GROUND_SHIFT, keys: ['J'], label: '攻击哥布林' },
-  ],
+  tutorials: [],
+  npcs: [],
   doubleJumpItem: null,
   staffItem: null,
   enemyStart: [
@@ -176,38 +188,55 @@ const levelThree = {
     { x: 1530, y: 350 + GROUND_SHIFT, w: 28, h: 28 },
     { x: 2208, y: 350 + GROUND_SHIFT, w: 28, h: 28 },
   ],
+  goalAction: 'win',
 };
 
 const levelFour = {
-  ...levelThree,
-  name: '长老密林',
-  theme: 'forest',
+  name: '水底洞窟',
+  theme: 'underwater',
+  world: { w: 1800, h: 540 },
+  start: { x: 96, y: GROUND_Y - STAND_H },
+  returnStart: { x: 1540, y: GROUND_Y - STAND_H },
+  goal: { x: 1660, y: 332 + GROUND_SHIFT, w: 44, h: 88 },
   goalLocked: true,
+  back: null,
+  grounds: [{ x: 0, y: GROUND_Y, w: 1800, h: TILE }],
+  platforms: [],
+  spikes: [],
+  rivers: [],
+  flowers: [],
+  tutorials: [],
+  npcs: [],
+  doubleJumpItem: null,
   staffItem: null,
   enemyStart: [
-    { kind: 'elderBoss', x: 2070, y: GROUND_Y - 86, w: 82, h: 86, vx: -34, min: 2040, max: 2460, hp: 15, maxHp: 15, attackTimer: 1.0 },
-  ],
-  tutorials: [
-    { x: 760, y: 270 + GROUND_SHIFT, keys: ['J'], label: '击败长老' },
-    { x: 1420, y: 214 + GROUND_SHIFT, keys: ['Shift'], label: '躲避法术' },
+    { kind: 'elderBoss', x: 1260, y: GROUND_Y - 86, w: 82, h: 86, vx: -34, min: 980, max: 1540, hp: 15, maxHp: 15, attackTimer: 1.0 },
   ],
   coins: [],
   healthPotions: [
-    { x: 820, y: 350 + GROUND_SHIFT, w: 28, h: 28 },
-    { x: 1530, y: 350 + GROUND_SHIFT, w: 28, h: 28 },
-    { x: 2208, y: 350 + GROUND_SHIFT, w: 28, h: 28 },
+    { x: 520, y: 350 + GROUND_SHIFT, w: 28, h: 28 },
+    { x: 900, y: 350 + GROUND_SHIFT, w: 28, h: 28 },
   ],
+  goalAction: 'returnToLevel',
+  returnLevelIndex: 2,
 };
 
 export const levels = [levelOne, levelTwo, levelThree, levelFour];
 export const back = { x: -999, y: -999, w: 0, h: 0 };
+const collectedCoinsByLevel = new Map();
 
 function replaceArray(target, source) {
   target.splice(0, target.length, ...source.map(item => Array.isArray(item) ? [...item] : { ...item }));
 }
 
+export function markCoinCollected(levelIndex, coinIndex) {
+  if (!collectedCoinsByLevel.has(levelIndex)) collectedCoinsByLevel.set(levelIndex, new Set());
+  collectedCoinsByLevel.get(levelIndex).add(coinIndex);
+}
+
 export function loadLevel(index) {
   const data = levels[index];
+  const collectedCoins = collectedCoinsByLevel.get(index) ?? new Set();
   levelInfo.index = index;
   levelInfo.name = data.name;
   levelInfo.theme = data.theme ?? 'market';
@@ -224,7 +253,8 @@ export function loadLevel(index) {
   replaceArray(rivers, data.rivers ?? []);
   replaceArray(flowers, data.flowers);
   replaceArray(tutorials, data.tutorials);
+  replaceArray(npcs, data.npcs ?? []);
   replaceArray(enemyStart, data.enemyStart);
-  coins.splice(0, coins.length, ...data.coins.map(c => ({ ...c, taken: false, float: Math.random() * 6 })));
+  coins.splice(0, coins.length, ...data.coins.map((c, coinIndex) => ({ ...c, taken: collectedCoins.has(coinIndex), float: Math.random() * 6 })));
   healthPotions.splice(0, healthPotions.length, ...(data.healthPotions ?? []).map(p => ({ ...p, taken: false, float: Math.random() * 6 })));
 }
